@@ -1,5 +1,7 @@
-from pyspark.sql.functions import lower, col, udf
-import pyspark.sql.functions as f
+# from pyspark.sql.functions import lower, col, udf
+# import pyspark.sql.functions as f
+from pyspark.sql.functions import *
+from pyspark.sql import Window
 # unix_timestamp, from_unixtime,
 from pyspark.sql import SparkSession, SQLContext
 from math import cos, asin, sqrt, pi
@@ -10,6 +12,7 @@ if __name__ == '__main__':
     .builder \
     .appName("reading csv") \
     .getOrCreate()
+
 
 data_file ='/home/duryan/Documents/ws-data-spark/data/DataSample.csv'
 poi_file ='/home/duryan/Documents/ws-data-spark/data/POIList.csv'
@@ -22,7 +25,7 @@ df = df.toDF(*[c.replace(" ", "").replace("_", "").lower() for c in df.columns])
 df2 = df2.toDF(*[c.replace(" ", "").replace("_", "").lower() for c in df2.columns])
 
 # convert to datetime format
-df = df.withColumn("timest", f.to_timestamp(df["timest"])).withColumn("longitude", df["longitude"].cast("float")).withColumn("latitude", df["latitude"].cast("float"))
+df = df.withColumn("timest", to_timestamp(df["timest"])).withColumn("longitude", df["longitude"].cast("float")).withColumn("latitude", df["latitude"].cast("float"))
 
 df2 = df2.withColumn("longitude", df2["longitude"].cast("float")).withColumn("latitude", df2["latitude"].cast("float"))
 
@@ -36,12 +39,12 @@ def poi_calc(lat, lon, lat2, lon2):
     return poi
 
 # convert to user defined function
-poi_udf = f.udf(lambda lat, lon, lat2, lon2: poi_calc(lat, lon, lat2, lon2), FloatType())
+poi_udf = udf(lambda lat, lon, lat2, lon2: poi_calc(lat, lon, lat2, lon2), FloatType())
 
 # setup a Window function to reduce a crossJoined dataframe to only those with closest POI
 ww = Window.partitionBy(col("id"))
 
-df = df.crossJoin(df2).withColumn("poi_calc", poi_udf(df.latitude, df.longitude, df2.latitude, df2.longitude)).withColumn("min_poi", f.min(col("poi_calc")).over(ww)).where(col("min_poi") == col("poi_calc")).drop(col('poi_calc'))
+df = df.crossJoin(df2).withColumn("poi_calc", poi_udf(df.latitude, df.longitude, df2.latitude, df2.longitude)).withColumn("min_poi", min(col("poi_calc")).over(ww)).where(col("min_poi") == col("poi_calc")).drop(col('poi_calc'))
 
 # consideration for this because POI1 and POI2 are the exact same
 ### df.dropDuplicates(['id'])
