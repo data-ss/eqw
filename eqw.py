@@ -22,7 +22,7 @@ df = df.toDF(*[c.replace(" ", "").replace("_", "").lower() for c in df.columns])
 df2 = df2.toDF(*[c.replace(" ", "").replace("_", "").lower() for c in df2.columns])
 
 # convert to datetime format
-df = df.withColumn("timest", to_timestamp(df["timest"])).withColumn("longitude", df["longitude"].cast("float")).withColumn("latitude", df["latitude"].cast("float"))
+df = df.withColumn("timest", f.to_timestamp(df["timest"])).withColumn("longitude", df["longitude"].cast("float")).withColumn("latitude", df["latitude"].cast("float"))
 
 
 
@@ -32,33 +32,56 @@ df2 = df2.withColumn("longitude", df2["longitude"].cast("float")).withColumn("la
 # drop duplicates
 df = df.dropDuplicates(["timest", "latitude", "longitude"])
 
-# setup inner join
-t1 = df.alias("t1")
-t2 = df2.alias("t2")
+# # setup inner join
+# t1 = df.alias("t1")
+# t2 = df2.alias("t2")
+#
+# t_join = t1.join(t2, (t1.id == t2.poiid) | (t1.id == t2.latitude) | (t1.id == t2.longitude), how='left')\.select("t1.*", )
 
-t_join = t1.join(t2, (t1.id == t2.poiid) | (t1.id == t2.latitude) | (t1.id == t2.longitude), how='left')\.select("t1.*", )
+###
+d = df.crossJoin(df2)
 
-d = df.union(df2)
+lol.withColumn("sum", df.latitude+df2.latitude)
 
->>> lol3  = lol2.groupBy(df.id).min("sum").select(f.col("min(sum)").alias("totlas"), df.id).show()
-
+lol3  = lol2.groupBy(df.id).min("sum").select(f.col("min(sum)").alias("totlas"), df.id).show()
+###
 
 # closest POI
 p = pi/180
 
-# poii = min([12742 * asin(sqrt(0.5 - cos((df2.collect()[i]["latitude"] - col("latitude")) * p)/2 + cos(col("latitude") * p) * cos(df2.collect()[i]["latitude"] * p) * (1 - cos((df2.collect()[i]["longitude"] - col("longitude")) * p)) / 2)) for i in range(df2.count())])
+d = df.crossJoin(df2)
 
-# 12742 * asin(sqrt(a))
+d = df.crossJoin(df2).withColumn("poi_calc", poi_udf(df.latitude, df.longitude, df2.latitude, df.longitude)).groupBy(df.id).min("poi_calc").select(f.col("min(poi_calc)").alias("closest_poi"), df.id)
 
-df = df.withColumn("poi_dist", min([12742 * asin(sqrt(0.5 - cos((df2.collect()[i]["latitude"] - df.collect()[x]["latitude"]) * p)/2 + cos(df.collect()[x]["latitude"] * p) * cos(df2.collect()[i]["latitude"] * p) * (1 - cos((df2.collect()[i]["longitude"] - df.collect()[x]["longitude"]) * p)) / 2)) for i in range(df2.count())] for x in range(df.count())))
+# d = df.crossJoin(df2).withColumn("poi_calc", poi_udf(df.latitude, df.longitude, df2.latitude, df2.longitude)).groupBy(df.id).min("poi_calc").select(df.id, f.col("min(poi_calc)").alias("closest_poi_dist"))
+
+
+d = df.crossJoin(df2).withColumn("poi_calc", poi_udf(df.latitude, df.longitude, df2.latitude, df2.longitude))
+
+ww = Window.partitionBy(col("id"))
+ff = d.withColumn("mvp", f.min(col("poi_calc")).over(ww))
+ff.where(ff.mvp == d.poi_calc)
+
+
+
+d = df.crossJoin(df2).withColumn("poi_calc", poi_udf(df.latitude, df.longitude, df2.latitude, df2.longitude)).min("poi_calc")
+
+# ff = d.withColumn("poi_calc", poi_udf(df.latitude, df.longitude, df2.latitude, df.longitude)).groupBy(df.id).min("poi_calc").select(df.id, df2.poiid, f.col("min(poi_calc)").alias("closest_poi"))
+
+# gg = spark.sql("SELECT *, poi_udf(df.latitude, df.longitude, df2.latitude, df.longitude) ")
+
 
 def poi_calc(latitude, longitude, lat2, lon2):
     p = pi/180
-    return min([12742 * asin(sqrt(0.5 - cos((lat2 - latitude) * p)/2 + cos(latitude * p) * cos(lat2 * p) * (1 - cos((lon2 - longitude) * p)) / 2)) for i in range(df2.count())])
+    poi = 12742 * asin(sqrt(0.5 - cos((lat2 - latitude) * p)/2 + cos(latitude * p) * cos(lat2 * p) * (1 - cos((lon2 - longitude) * p)) / 2))
+    return poi
 
-poi_calc_udf = udf(lambda latitude, longitude, lat2, lon2: poi_calc(latitude, longitude, lat2, lon2), FloatType())
 
-df = df.withColumn("poi_dist", poi_calc_udf(df.latitude, df.longitude, df2))
+poi_udf = f.udf(lambda lat, lon, lat2, lon2: poi_calc(lat, lon, lat2, lon2), FloatType())
+
+# poii = min([12742 * asin(sqrt(0.5 - cos((df2.collect()[i]["latitude"] - col("latitude")) * p)/2 + cos(col("latitude") * p) * cos(df2.collect()[i]["latitude"] * p) * (1 - cos((df2.collect()[i]["longitude"] - col("longitude")) * p)) / 2)) for i in range(df2.count())])
+
+# 12742 * asin(sqrt(a))
 
 
 
