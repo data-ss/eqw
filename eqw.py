@@ -36,25 +36,27 @@ df = df.dropDuplicates(["timest", "latitude", "longitude"])
 ### 2. Label
 
 # setup POI distance calculation
-# Haversine equation (in kilometres)
-def poi_calc(lat, lon, lat2, lon2):
+# Haversine equation (in kilometres, km)
+def distance_calc(lat, lon, lat2, lon2):
     p = pi/180
     poi = 12742 * asin(sqrt(0.5 - cos((lat2 - lat) * p)/2 + cos(lat * p) * cos(lat2 * p) * (1 - cos((lon2 - lon) * p)) / 2))
     return poi
 
 # convert to user defined function
-poi_udf = udf(lambda lat, lon, lat2, lon2: poi_calc(lat, lon, lat2, lon2), FloatType())
+poi_udf = udf(lambda lat, lon, lat2, lon2: distance_calc(lat, lon, lat2, lon2), FloatType())
 
 # setup a Window function to reduce a crossJoined dataframe to only those with closest POI
-ww = Window.partitionBy(col("id"))
+w1 = Window.partitionBy(col("id"))
 
-df = df.crossJoin(df2).withColumn("poi_calc", poi_udf(df.latitude, df.longitude, df2.poi_latitude, df2.poi_longitude)).withColumn("min_poi", min(col("poi_calc")).over(ww)).where(col("min_poi") == col("poi_calc")).drop(col('poi_calc'))
+df = df.crossJoin(df2).withColumn("distance_calc", poi_udf(df.latitude, df.longitude, df2.poi_latitude, df2.poi_longitude)).withColumn("closest_dist", min(col("distance_calc")).over(w1)).where(col("closest_dist") == col("distance_calc")).drop(col('distance_calc')).filter(df.longitude<0)
 
 # consideration for this because POI1 and POI2 are the exact same
 ### df.dropDuplicates(['id'])
 
 ### 3. Analysis
 ### 3.1 Calculate average and standard deviation of the distance between POI to each of its assigned requests
+df_temp = df.groupBy(df.poiid).agg(avg(df.closest_dist).alias("mean"), stddev(df.closest_dist).alias("stddev"))
 
 ### 3.2 At each POI draw a circle (center at POI) that includes all its assigned requests. Calculate radius and density (requests/area) for each POI
-## GroupBy POI
+
+# done in Pandas
