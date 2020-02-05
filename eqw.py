@@ -1,8 +1,5 @@
-# from pyspark.sql.functions import lower, col, udf
-# import pyspark.sql.functions as f
 from pyspark.sql.functions import *
 from pyspark.sql import Window
-# unix_timestamp, from_unixtime,
 from pyspark.sql import SparkSession, SQLContext
 from math import cos, asin, sqrt, pi
 from pyspark.sql.types import FloatType
@@ -50,8 +47,8 @@ w1 = Window.partitionBy(col("id"))
 
 df = df.crossJoin(df2).withColumn("distance_calc", poi_udf(df.latitude, df.longitude, df2.poi_latitude, df2.poi_longitude)).withColumn("closest_dist", min(col("distance_calc")).over(w1)).where(col("closest_dist") == col("distance_calc")).drop(col('distance_calc')).filter(df.longitude<0)
 
-# consideration for this because POI1 and POI2 are the exact same
-### df.dropDuplicates(['id'])
+# consideration for the following code to be executed because POI1 and POI2 are the exact same
+#### df.dropDuplicates(['id'])
 
 ### 3. Analysis
 ### 3.1 Calculate average and standard deviation of the distance between POI to each of its assigned requests
@@ -59,4 +56,24 @@ df_temp = df.groupBy(df.poiid).agg(avg(df.closest_dist).alias("mean"), stddev(df
 
 ### 3.2 At each POI draw a circle (center at POI) that includes all its assigned requests. Calculate radius and density (requests/area) for each POI
 
-# done in Pandas
+## Performed with GeoPandas in Jupyter Notebook
+
+
+### 4a. Model
+### 1.
+# Let's assume we have x that ranges from min1 to max1, and we'll convert it to
+# y that ranges from -10 to 10 (min2 and max2 respectively).
+#
+# We'll first transform the lower limit for x to 0 by subtracting itself, and doing the same
+# operation for its upper limit results in 0:(x-min1). Next by dividing lower and upper limits
+# by itself will result in a range of 0:1.
+#
+# We can then transform that to our desired range of -10:10 by multiplying it with the desired range's difference
+# (max2-min2) and then adding the lower range of the desired range (-10).
+#
+# Putting it all together, the equation to use to transform to a new scale is as follows:
+
+# (((max2-min2)*(x-min1)/(max1-min1))+min2)
+
+def scaler(x, min1, max1, min2, max2):
+    return (((max2-min2)*(x-min1)/(max1-min1))+min2)

@@ -1,0 +1,25 @@
+4a. Model
+2. Bonus
+
+Hypothesis 1: POIs are parking lots that obtained data from people who visited; the "requests" would therefore be where the visitors came from
+
+Hypothesis 2: POIs are mobile data towers where people's phones connect to
+
+Testing steps:
+Step 1: Inspect all services offered at EQWorks' website.
+
+Step 2: Input all POI coordinates into Google Maps
+
+Step 3: Check various views such as "Street Views" and try to find commonalities
+between all 3 POIs and their relationship with one of the services offered by EQWorks.
+
+Conclusion:
+Upon examination of street views of the three POIs, my conclusion is that the POIs are
+parking spaces visited by travellers from its nearby "requests".
+
+POI1/2 is placed directly into a parking lot in Edmonton.
+
+POI3 is placed onto a street with a park nearby in Montreal.
+
+POI4 is placed onto a remote location in Nova Scotia where there's a white building structure very close by.
+It is likely a vacation home.
