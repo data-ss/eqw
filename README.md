@@ -1,5 +1,5 @@
 # EQWorks Work Sample for Data Role
-The work sample problems were solved using a combination of PySpark and Jupyter Notebook and their associated packages in a Ubuntu environment.
+The [work sample problems](https://gist.github.com/duryan00/33b7cf682e72c923da2d3a60de75462e) were solved using a combination of PySpark and Jupyter Notebook and their associated packages in a Ubuntu environment.
 
 Jupyter Notebook filename: `eqw.ipynb`
 
